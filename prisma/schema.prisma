@@ -1,0 +1,164 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String            @id @default(uuid())
+  name            String
+  phoneNumber     String            @unique
+  password        String
+  address         String?
+  businessName    String?
+  role            Role              @default(USER)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  wabaAccounts    WaAccountDetail[]
+  chatFlows       ChatFlow[]
+  chatStates      ChatState[]
+  chatLogs        ChatLog[]
+  waTemplates     WaTemplate[]      // Relasi dengan template
+  waBlasts        WaBlast[]         // Relasi dengan blast
+}
+
+model WaAccountDetail {
+  id              String            @id @default(uuid())
+  userId          String            @unique
+  displayName     String
+  phoneNumber     String            @unique
+  wabaId          String?
+  phoneNumberId   String?
+  verified        Boolean           @default(false)
+  verificationCode String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Model untuk template WhatsApp
+model WaTemplate {
+  id              String            @id @default(uuid())
+  userId          String
+  name            String
+  language        String            @default("id") // Kode bahasa (id, en, dll)
+  category        TemplateCategory  @default(UTILITY)
+  status          TemplateStatus    @default(PENDING)
+  components      Json              // Komponen template (header, body, footer, buttons)
+  metaTemplateId  String?           // ID template di Meta/WhatsApp
+  rejectionReason String?           // Alasan jika template ditolak
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  blasts          WaBlast[]         // Relasi dengan campaigns
+
+  @@index([userId, status])
+}
+
+// Model untuk blast/broadcast WhatsApp
+model WaBlast {
+  id              String            @id @default(uuid())
+  userId          String
+  templateId      String
+  name            String
+  status          BlastStatus       @default(DRAFT)
+  recipients      Json              // Array nomor tujuan
+  parameters      Json?             // Parameter global untuk template
+  recipientParameters Json?         // Parameter spesifik per nomor telepon
+  scheduledAt     DateTime?         // Waktu blast dijadwalkan
+  completedAt     DateTime?         // Waktu blast selesai
+  totalRecipients Int               @default(0)
+  sentCount       Int               @default(0)
+  deliveredCount  Int               @default(0)
+  readCount       Int               @default(0)
+  failedCount     Int               @default(0)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template        WaTemplate        @relation(fields: [templateId], references: [id])
+
+  @@index([userId, status])
+}
+
+model ChatFlow {
+  id              String            @id @default(uuid())
+  userId          String
+  name            String
+  flowJson        Json
+  // Contoh format flowJson:
+  // {
+  //   "root": {
+  //     "message": "Halo! Pilih:\n1. Produk\n2. CS",
+  //     "options": { "1": "produk", "2": "cs" }
+  //   },
+  //   "produk": { ... }
+  // }
+  isActive        Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+
+  user            User              @relation(fields: [userId], references: [id])
+
+  @@index([userId, isActive])
+}
+
+model ChatState {
+  id              String            @id @default(uuid())
+  userId          String
+  currentState    String            @default("root")
+  waNumber        String            // nomor WhatsApp pengunjung
+  updatedAt       DateTime          @updatedAt
+
+  user            User              @relation(fields: [userId], references: [id])
+  @@unique([userId, waNumber])
+}
+
+model ChatLog {
+  id              String            @id @default(uuid())
+  userId          String
+  user            User              @relation(fields: [userId], references: [id])
+  waNumber        String
+  direction       MessageDirection
+  message         String
+  currentState    String
+  createdAt       DateTime          @default(now())
+}
+
+enum MessageDirection {
+  IN
+  OUT
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum TemplateCategory {
+  MARKETING
+  UTILITY
+  AUTHENTICATION
+  ALERT_UPDATE
+}
+
+enum TemplateStatus {
+  PENDING     // Menunggu pengajuan
+  SUBMITTED   // Sudah diajukan ke Meta
+  APPROVED    // Disetujui
+  REJECTED    // Ditolak
+  DISABLED    // Dinonaktifkan
+}
+
+enum BlastStatus {
+  DRAFT       // Draft, belum dikirim
+  SCHEDULED   // Dijadwalkan
+  PROCESSING  // Sedang diproses
+  COMPLETED   // Selesai
+  CANCELLED   // Dibatalkan
+  FAILED      // Gagal
+}

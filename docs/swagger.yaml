@@ -1,0 +1,805 @@
+openapi: 3.0.0
+info:
+  title: WhatsApp Gateway API
+  description: API untuk WhatsApp Business API Gateway dengan Chatbot Flow
+  version: 1.0.0
+  contact:
+    name: Admin
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+  - url: https://api.example.com/api
+    description: Production server
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        status:
+          type: string
+          example: error
+        message:
+          type: string
+          example: Error message
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [user, admin]
+        created_at:
+          type: string
+          format: date-time
+    AuthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            user:
+              $ref: '#/components/schemas/User'
+            token:
+              type: string
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+        recipient:
+          type: string
+        content:
+          type: string
+        status:
+          type: string
+          enum: [sent, delivered, read, failed]
+        timestamp:
+          type: string
+          format: date-time
+
+paths:
+  /:
+    get:
+      summary: Health Check
+      description: Endpoint untuk mengecek status API
+      tags:
+        - General
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: WhatsApp Gateway API
+                  version:
+                    type: string
+                    example: 1.0.0
+
+  # ====================== AUTH ROUTES ======================
+  /auth/register:
+    post:
+      summary: Register User
+      description: Mendaftarkan pengguna baru
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - email
+                - password
+              properties:
+                username:
+                  type: string
+                  example: johndoe
+                email:
+                  type: string
+                  format: email
+                  example: john@example.com
+                password:
+                  type: string
+                  format: password
+                  example: password123
+      responses:
+        201:
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        400:
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      summary: Login User
+      description: Autentikasi pengguna dan membuat token
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: john@example.com
+                password:
+                  type: string
+                  format: password
+                  example: password123
+      responses:
+        200:
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        401:
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/refresh-token:
+    post:
+      summary: Refresh Access Token
+      description: Mendapatkan token akses baru dengan refresh token
+      tags:
+        - Authentication
+      responses:
+        200:
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      token:
+                        type: string
+        401:
+          description: Invalid refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      summary: Logout User
+      description: Menghapus token untuk logout
+      tags:
+        - Authentication
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Logout berhasil
+
+  /auth/profile:
+    get:
+      summary: Get User Profile
+      description: Mendapatkan profil pengguna yang sedang login
+      tags:
+        - Authentication
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: Profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+                      
+    put:
+      summary: Update User Profile
+      description: Memperbarui profil pengguna
+      tags:
+        - Authentication
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  example: johndoe
+                email:
+                  type: string
+                  format: email
+                  example: john@example.com
+      responses:
+        200:
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+
+  /auth/register/phone_number:
+    post:
+      summary: Register Phone Number
+      description: Mendaftarkan nomor telepon untuk WhatsApp
+      tags:
+        - Authentication
+        - WhatsApp
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phone_number
+              properties:
+                phone_number:
+                  type: string
+                  example: '+628123456789'
+      responses:
+        200:
+          description: Phone number registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Nomor telepon berhasil didaftarkan
+
+  /auth/request-verification/phone_number:
+    post:
+      summary: Request OTP Verification
+      description: Meminta kode OTP untuk verifikasi nomor telepon
+      tags:
+        - Authentication
+        - WhatsApp
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phone_number
+              properties:
+                phone_number:
+                  type: string
+                  example: '+628123456789'
+      responses:
+        200:
+          description: OTP sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Kode OTP telah dikirim
+
+  /auth/verify/phone_number:
+    post:
+      summary: Verify OTP Code
+      description: Memverifikasi kode OTP untuk nomor telepon
+      tags:
+        - Authentication
+        - WhatsApp
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phone_number
+                - otp_code
+              properties:
+                phone_number:
+                  type: string
+                  example: '+628123456789'
+                otp_code:
+                  type: string
+                  example: '123456'
+      responses:
+        200:
+          description: Phone number verified successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Nomor telepon berhasil diverifikasi
+
+  # ====================== ADMIN ROUTES ======================
+  /admin/users:
+    get:
+      summary: Get All Users
+      description: Mendapatkan daftar semua pengguna (admin only)
+      tags:
+        - Admin
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: Users retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      users:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+                      
+  /admin/users/{userId}:
+    get:
+      summary: Get User by ID
+      description: Mendapatkan detail pengguna berdasarkan ID (admin only)
+      tags:
+        - Admin
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: User retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+        404:
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+    delete:
+      summary: Delete User
+      description: Menghapus pengguna berdasarkan ID (admin only)
+      tags:
+        - Admin
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Pengguna berhasil dihapus
+        404:
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/stats:
+    get:
+      summary: Get System Statistics
+      description: Mendapatkan statistik sistem (admin only)
+      tags:
+        - Admin
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: Statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      userCount:
+                        type: integer
+                      messageCount:
+                        type: integer
+                      activeChats:
+                        type: integer
+
+  /admin/logs/{userId}:
+    get:
+      summary: Get User Message Logs
+      description: Mendapatkan log pesan dari pengguna tertentu (admin only)
+      tags:
+        - Admin
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Logs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      logs:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            message:
+                              type: string
+                            timestamp:
+                              type: string
+                              format: date-time
+
+  /admin/flows/{userId}:
+    get:
+      summary: Get All User Flows
+      description: Mendapatkan semua flow chatbot dari pengguna tertentu (admin only)
+      tags:
+        - Admin
+        - Chatbot
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Flows retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      flows:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            name:
+                              type: string
+                            status:
+                              type: string
+                            created_at:
+                              type: string
+                              format: date-time
+
+  /admin/flows/{userId}/{flowId}:
+    get:
+      summary: Get Flow by ID
+      description: Mendapatkan detail flow chatbot berdasarkan ID (admin only)
+      tags:
+        - Admin
+        - Chatbot
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: flowId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Flow retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      flow:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          nodes:
+                            type: array
+                            items:
+                              type: object
+                          edges:
+                            type: array
+                            items:
+                              type: object
+
+  # ====================== WHATSAPP ROUTES ======================
+  /whatsapp/webhook:
+    get:
+      summary: Verify Webhook
+      description: Endpoint untuk verifikasi webhook WhatsApp Cloud API
+      tags:
+        - WhatsApp
+      parameters:
+        - name: hub.mode
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: hub.verify_token
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: hub.challenge
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Webhook verified successfully
+          content:
+            text/plain:
+              schema:
+                type: string
+        403:
+          description: Verification failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+    post:
+      summary: Webhook Callback
+      description: Menerima update pesan dari WhatsApp Cloud API
+      tags:
+        - WhatsApp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        200:
+          description: Webhook received successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+
+  /whatsapp/waba-info:
+    get:
+      summary: Get WABA Info
+      description: Mendapatkan informasi WhatsApp Business Account
+      tags:
+        - WhatsApp
+      responses:
+        200:
+          description: WABA info retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      wabaId:
+                        type: string
+                      phoneNumbers:
+                        type: array
+                        items:
+                          type: string
+
+  /whatsapp/send-message:
+    post:
+      summary: Send Text Message
+      description: Mengirim pesan teks ke nomor WhatsApp
+      tags:
+        - WhatsApp
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - recipient
+                - message
+              properties:
+                recipient:
+                  type: string
+                  example: '+628123456789'
+                message:
+                  type: string
+                  example: 'Hello, this is a test message'
+      responses:
+        200:
+          description: Message sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      messageId:
+                        type: string
+        400:
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error' 
