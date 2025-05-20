@@ -1,6 +1,7 @@
 import prisma from '../config/database.js';
 import { config } from '../config/config.js';
 import axios from 'axios';
+import packageService from './package.service.js';
 import { TemplateService } from './template.service.js';
 import { scheduleBlast, cancelScheduledBlast } from '../config/queue.js';
 import { responseError } from '../utils/error.js';
@@ -218,6 +219,8 @@ export class BlastService {
         throw new responseError(404,'Blast tidak ditemukan');
       }
       
+      // await packageService.checkUserMessageQuota(blast.userId);
+
       // Validasi status blast
       if (blast.status !== 'DRAFT' && blast.status !== 'SCHEDULED') {
         throw new responseError(400,`Blast tidak bisa dikirim karena status blast saat ini ${blast.status}`);
@@ -321,6 +324,7 @@ export class BlastService {
           );
           
           sentCount++;
+          // await packageService.recordMessageUsage(blast.userId, 1);
           
           // Rate limiting sederhana - tambahkan delay 200ms antar pengiriman
           await new Promise(resolve => setTimeout(resolve, 200));

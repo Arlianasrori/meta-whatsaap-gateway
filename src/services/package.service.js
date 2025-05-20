@@ -64,9 +64,6 @@ class PackageService {
         hasQuota: remainingQuota > 0,
         remainingQuota,
         packageId: activePackage.id,
-        message: remainingQuota > 0
-          ? `Sisa kuota: ${remainingQuota} pesan`
-          : 'Kuota pesan Anda habis, silahkan beli paket baru'
       };
     } catch (error) {
       console.error('Error checking message quota:', error);
@@ -127,6 +124,7 @@ class PackageService {
           userId,
           amount: packageType.price,
           status: 'PENDING',
+          packageTypeId: packageType.id,
           expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 jam
         }
       });
@@ -248,18 +246,9 @@ class PackageService {
         throw new Error('Transaksi tidak valid');
       }
       
-      // Get package type details
-      const packageTypeId = await prisma.transaction.findFirst({
-        where: { id: transactionId },
-        select: {
-          amount: true
-        }
-      });
-      
       const packageType = await prisma.packageType.findFirst({
         where: { 
-          price: packageTypeId.amount,
-          isActive: true 
+          id: transaction.packageTypeId
         }
       });
       

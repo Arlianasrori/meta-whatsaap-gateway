@@ -11,6 +11,7 @@ import  {errorMiddleware}  from './middlewares/error.middleware.js';
 import { responseError } from './utils/error.js';
 import swaggerUi from 'swagger-ui-express';
 import YAML from 'yamljs';
+import fileUpload from 'express-fileupload';
 
 // Konfigurasi __dirname di ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -31,7 +32,7 @@ app.use(helmet());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser()); // Untuk memproses cookies
-
+app.use(fileUpload());
 // Logging
 if (config.environment === 'development') {
   app.use(morgan('dev'));

@@ -178,6 +178,7 @@ model PackageType {
   updatedAt       DateTime          @updatedAt
   
   userPackages    UserPackage[]
+  transactions    Transaction[]
 }
 
 // Model untuk paket yang dimiliki user
@@ -221,6 +222,7 @@ model Transaction {
   
   user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   userPackage     UserPackage?      @relation(fields: [userPackageId], references: [id])
+  packageType     PackageType?      @relation(fields: [packageTypeId], references: [id])
   
   @@index([userId, status])
   @@index([midtransOrderId, status])

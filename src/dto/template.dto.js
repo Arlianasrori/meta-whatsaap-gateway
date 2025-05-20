@@ -73,7 +73,7 @@ export const createBlastSchema = z.object({
     required_error: 'ID template wajib diisi',
   }),
   recipients: z.array(
-    z.string().regex(/^62[0-9]{8,11}$/, { 
+    z.string().regex(/^62[0-9]{8,13}$/, { 
       message: 'Nomor telepon harus diawali dengan 62 (tanpa + atau 0) dan diikuti 8-11 digit angka'
     })
   ).min(1, { message: 'Minimal harus ada 1 penerima' }),

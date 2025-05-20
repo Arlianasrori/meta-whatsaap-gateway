@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import packageController from '../controllers/package.controller.js';
-import { authenticateToken } from '../middlewares/auth.middleware.js';
+import { authenticate } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
@@ -9,9 +9,9 @@ router.post('/callback', packageController.handlePaymentCallback);
 router.get('/finish', packageController.handlePaymentFinish);
 
 // Protected routes (harus login)
-router.get('/types', authenticateToken, packageController.getAllPackages);
-router.get('/active', authenticateToken, packageController.getActivePackage);
-router.post('/purchase', authenticateToken, packageController.purchasePackage);
-router.get('/transactions', authenticateToken, packageController.getTransactionHistory);
+router.get('/types', authenticate, packageController.getAllPackages);
+router.get('/active', authenticate, packageController.getActivePackage);
+router.post('/purchase', authenticate, packageController.purchasePackage);
+router.get('/transactions', authenticate, packageController.getTransactionHistory);
 
 export default router; 

@@ -1,5 +1,6 @@
 import prisma from '../config/database.js';
 import { WhatsAppService } from './whatsapp.service.js';
+import  packageService  from './package.service.js';
 import { config } from '../config/config.js';
 import axios from 'axios';
 /**
@@ -259,6 +260,8 @@ export class ChatbotService {
       );
 
       console.log("✅ Pesan terkirim:", response.data);
+
+      // await packageService.recordMessageUsage(userId, 1);
   }
 
   /**
@@ -271,6 +274,7 @@ export class ChatbotService {
    */
   static async processIncomingMessage(userId, senderNumber, message, phoneNumberId) {
     try {
+      // await WhatsAppService.checkMessageQuota(userId);
       if (!["text","interactive"].includes(message.type)) throw new Error('format file tidak didukung');
       // Dapatkan flow aktif
       const activeFlow = await this.getActiveFlow(userId);
