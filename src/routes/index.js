@@ -5,6 +5,7 @@ import whatsappRoutes from './whatsapp.routes.js';
 import chatbotRoutes from './chatbot.routes.js';
 import adminRoutes from './admin.routes.js';
 import templateRoutes from './template.routes.js';
+import packageRoutes from './package.routes.js';
 
 const router = Router();
 
@@ -15,6 +16,7 @@ router.use('/whatsapp', whatsappRoutes);
 router.use('/chatbot', chatbotRoutes);
 router.use('/admin', adminRoutes);
 router.use('/messaging', templateRoutes);
+router.use('/packages', packageRoutes);
 
 // API base route untuk health check
 router.get('/', (req, res) => {

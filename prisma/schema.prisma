@@ -23,6 +23,8 @@ model User {
   chatLogs        ChatLog[]
   waTemplates     WaTemplate[]      // Relasi dengan template
   waBlasts        WaBlast[]         // Relasi dengan blast
+  userPackages    UserPackage[]     // Relasi dengan paket
+  transactions    Transaction[]     // Relasi dengan transaksi
 }
 
 model WaAccountDetail {
@@ -161,4 +163,73 @@ enum BlastStatus {
   COMPLETED   // Selesai
   CANCELLED   // Dibatalkan
   FAILED      // Gagal
+}
+
+// Model untuk jenis paket
+model PackageType {
+  id              String            @id @default(uuid())
+  name            String            // Nama paket (Starter, Business)
+  price           Int               // Harga dalam Rupiah
+  messageQuota    Int               // Jumlah kuota pesan
+  validityDays    Int               // Masa berlaku dalam hari
+  description     String?           // Deskripsi paket
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  userPackages    UserPackage[]
+}
+
+// Model untuk paket yang dimiliki user
+model UserPackage {
+  id              String            @id @default(uuid())
+  userId          String
+  packageTypeId   String
+  messageQuota    Int               // Jumlah kuota pesan
+  messageUsed     Int               @default(0) // Jumlah pesan yang sudah digunakan
+  startDate       DateTime          @default(now())
+  endDate         DateTime          // Tanggal berakhir paket
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  packageType     PackageType       @relation(fields: [packageTypeId], references: [id])
+  
+  transactions    Transaction[]
+  
+  @@index([userId, isActive])
+}
+
+// Model untuk transaksi pembayaran
+model Transaction {
+  id              String            @id @default(uuid())
+  userId          String
+  packageTypeId   String            
+  userPackageId   String?
+  amount          Int               // Jumlah dalam Rupiah
+  paymentMethod   String?           // Metode pembayaran
+  paymentChannel  String?           // Channel pembayaran (BCA, Mandiri, dll)
+  midtransOrderId String?           @unique // ID order di Midtrans
+  midtransToken   String?           // Token pembayaran Midtrans
+  status          PaymentStatus     @default(PENDING)
+  paidAt          DateTime?         // Waktu pembayaran
+  expiredAt       DateTime?         // Waktu kadaluarsa pembayaran
+  canceledAt      DateTime?         // Waktu pembatalan
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userPackage     UserPackage?      @relation(fields: [userPackageId], references: [id])
+  
+  @@index([userId, status])
+  @@index([midtransOrderId, status])
+}
+
+enum PaymentStatus {
+  PENDING      // Menunggu pembayaran
+  PAID         // Sudah dibayar
+  EXPIRED      // Kadaluarsa
+  FAILED       // Gagal
+  CANCELED     // Dibatalkan
 }

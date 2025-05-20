@@ -2,6 +2,7 @@ import axios from 'axios';
 import prisma from '../config/database.js';
 import { config } from '../config/config.js';
 import { responseError } from '../utils/error.js';
+import packageService from './package.service.js';
 
 /**
  * Service untuk interaksi dengan WhatsApp API
@@ -29,13 +30,39 @@ export class WhatsAppService {
   }
 
   /**
+   * Memeriksa kuota pesan dan menguranginya jika valid
+   * @param {string} userId - ID User
+   * @returns {Promise<Object>} Status kuota pesan
+   */
+  static async checkAndDeductMessageQuota(userId) {
+    // Periksa kuota pesan
+    const quotaStatus = await packageService.checkUserMessageQuota(userId);
+    
+    if (!quotaStatus.hasQuota) {
+      throw new Error(quotaStatus.message);
+    }
+    
+    // Kurangi kuota pesan
+    await packageService.recordMessageUsage(userId, 1);
+    
+    return {
+      success: true,
+      message: quotaStatus.message
+    };
+  }
+
+  /**
    * Mengirim pesan teks
+   * @param {string} userId - ID User
    * @param {string} phoneNumberId - ID nomor telepon pengirim
    * @param {string} to - Nomor telepon penerima (tanpa +)
    * @param {string} message - Isi pesan
    * @returns {Promise<Object>} Response dari API
    */
-  static async sendTextMessage(phoneNumberId, to, message) {
+  static async sendTextMessage(userId, phoneNumberId, to, message) {
+    // Periksa dan kurangi kuota pesan
+    await this.checkAndDeductMessageQuota(userId);
+    
     const url = `${this.baseUrl}/${this.apiVersion}/${phoneNumberId}/messages`;
     
     const response = await axios.post(

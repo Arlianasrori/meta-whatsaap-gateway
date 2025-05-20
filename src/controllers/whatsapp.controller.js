@@ -41,8 +41,9 @@ export class WhatsAppController {
         });
       }
       
-      // Kirim pesan
+      // Kirim pesan (termasuk pengecekan kuota)
       const sendResult = await WhatsAppService.sendTextMessage(
+        id, // UserID untuk pengecekan kuota
         waAccount.phoneNumberId,
         to,
         message
@@ -57,7 +58,10 @@ export class WhatsAppController {
         data: sendResult
       });
     } catch (error) {
-      next(error);
+      return res.status(400).json({
+        status: 'error',
+        message: error.message || 'Gagal mengirim pesan'
+      });
     }
   }
   
@@ -97,14 +101,27 @@ export class WhatsAppController {
                   where: { phoneNumberId: phoneNumberId }
                 });
                 
-                if (user.phoneNumberId) {            
-                  // Proses pesan dengan chatbot flow
-                  await ChatbotService.processIncomingMessage(
-                    user.userId,
-                    from,
-                    message,
-                    phoneNumberId
-                  );
+                if (user?.phoneNumberId) {
+                  try {
+                    // Cek kuota pesan sebelum memproses pesan (untuk balasan otomatis)
+                    await WhatsAppService.checkAndDeductMessageQuota(user.userId);
+                    
+                    // Proses pesan dengan chatbot flow
+                    await ChatbotService.processIncomingMessage(
+                      user.userId,
+                      from,
+                      message,
+                      phoneNumberId
+                    );
+                  } catch (quotaError) {
+                    console.error(`Quota error for user ${user.userId}:`, quotaError.message);
+                    // Kirim notifikasi kuota habis (tidak mengurangi kuota)
+                    await WhatsAppService.sendTextMessage(
+                      user.phoneNumberId,
+                      from,
+                      "Maaf, kuota pesan Anda telah habis. Silahkan beli paket baru untuk melanjutkan menggunakan layanan ini."
+                    );
+                  }
                 }
               }
             }
@@ -114,7 +131,9 @@ export class WhatsAppController {
       }
 
     } catch (error) {
-      next(error);
+      // Tetap mengembalikan status 200 agar Meta tidak mencoba ulang
+      console.error('Webhook error:', error);
+      res.status(200).json({ status: 'error', message: error.message });
     }
   }
 
